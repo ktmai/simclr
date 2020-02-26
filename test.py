@@ -8,7 +8,7 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn.functional as F
-from encoder import Encoder, Classifier
+from models import Encoder, Classifier
 
 def train(args, model, device, train_loader, optimizer, epoch, criterion):
     model.train()

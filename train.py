@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from pytorch_metric_learning import losses
 from data_augmentations import get_color_distortion
-from encoder import Encoder
+from models import Encoder
 from modified_cifar import CIFAR10_new
 
 
