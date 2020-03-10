@@ -171,6 +171,7 @@ class CIFAR10_new(VisionDataset):
     def apply_transformations(self, img):
         import torch
         import random
+
         transformation_vector = []
         crop = random.choice([True, False])
         color_distort = random.choice([True, False])
@@ -178,18 +179,22 @@ class CIFAR10_new(VisionDataset):
         if crop:
             img = self.crop(img)
             transformation_vector.append(0)
+            if color_distort:
+                img = self.color_distort(img)
+                transformation_vector = 3
+            else:
+                transformation_vector = 2
         else:
-            transformation_vector.append(1)
-        if color_distort:
-            img = self.color_distort(img)
-            transformation_vector.append(0)
-        else:
-            transformation_vector.append(1)
+            if color_distort:
+                transformation_vector = 1
+            else:
+                transformation_vector = 0
 
         if flip:
             img = self.flip(img)
 
         transformation_vector = torch.from_numpy(np.array(transformation_vector)).long()
+
         img = self.to_tensor(img)
         return img, transformation_vector
 
