@@ -44,6 +44,9 @@ class CIFAR10_new(VisionDataset):
         ["data_batch_2", "d4bba439e000b95fd0a9bffe97cbabec"],
         ["data_batch_3", "54ebc095f3ab1f0389bbae665268c751"],
         ["data_batch_4", "634d18415352ddfa80567beed471001a"],
+    ]
+
+    validation_list = [
         ["data_batch_5", "482c414d41f54cd18b22e5b47cb7c3cb"],
     ]
 
@@ -75,9 +78,11 @@ class CIFAR10_new(VisionDataset):
                 + " You can use download=True to download it"
             )
 
-        if self.train:
+        if self.train == "train":
             downloaded_list = self.train_list
-        else:
+        elif self.train == "validate":
+            downloaded_list = self.validate_list
+        elif self.train == "test": 
             downloaded_list = self.test_list
 
         self.data = []
@@ -170,33 +175,31 @@ class CIFAR10_new(VisionDataset):
 
     def apply_transformations(self, img):
         import torch
+        import torchvision
         import random
 
-        transformation_vector = []
-        crop = random.choice([True, False])
-        color_distort = random.choice([True, False])
-        flip = random.choice([True, False])
-        if crop:
-            img = self.crop(img)
-            transformation_vector.append(0)
-            if color_distort:
-                img = self.color_distort(img)
-                transformation_vector = 3
-            else:
-                transformation_vector = 2
-        else:
-            if color_distort:
-                transformation_vector = 1
-            else:
-                transformation_vector = 0
+        img = self.crop(img)
+        #img = self.flip(img)
+        img = self.color_distort(img)
 
-        if flip:
-            img = self.flip(img)
+        random_rotation = random.choice([0, 1, 2, 3])
+        if random_rotation == 0:
+            rotation = torchvision.transforms.RandomRotation((0,0))
+        if random_rotation == 1:
+            rotation = torchvision.transforms.RandomRotation((90,90))
+        if random_rotation == 2:
+            rotation = torchvision.transforms.RandomRotation((180,180))
+        if random_rotation == 3:
+            rotation = torchvision.transforms.RandomRotation((270,270))
 
-        transformation_vector = torch.from_numpy(np.array(transformation_vector)).long()
+        img = rotation(img)
+
+        rotation_vector = torch.from_numpy(np.array(random_rotation)).long()
 
         img = self.to_tensor(img)
-        return img, transformation_vector
+        img = self.Normalize(img)
+
+        return img, rotation_vector
 
     def define_transformations(self):
         from torchvision import transforms

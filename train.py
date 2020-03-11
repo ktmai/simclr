@@ -18,7 +18,7 @@ from modified_cifar import CIFAR10_new
 
 
 def train(args, model, device, train_loader, optimizer, loss_func, epoch):
-    label_loss = nn.CrossEntropyLoss() 
+    label_loss = nn.CrossEntropyLoss()
     model.train()
     for batch_idx, (xi, xj, _, true_Ti, true_Tj) in enumerate(train_loader):
         xi, xj = xi.to(device), xj.to(device)
@@ -30,9 +30,12 @@ def train(args, model, device, train_loader, optimizer, loss_func, epoch):
         # Create fake labels for each sample
         indices = torch.arange(0, args.BATCH_SIZE).to(device)
         labels = torch.cat((indices, indices))
-        loss = loss_func(embeddings, labels)
-        loss += label_loss(predicted_Ti, true_Ti)/2
-        loss += label_loss(predicted_Tj, true_Tj)/2
+        label_loss_val = (
+            label_loss(predicted_Ti, true_Ti) / 4
+            + label_loss(predicted_Tj, true_Tj) / 4
+        )
+        metric_loss = loss_func(embeddings, labels)
+        loss = metric_loss #+ label_loss_val
         loss.backward()
         optimizer.step()
         if batch_idx % args.LOG_INT == 0:
@@ -45,6 +48,8 @@ def train(args, model, device, train_loader, optimizer, loss_func, epoch):
                     loss.item(),
                 )
             )
+            print("label loss", label_loss_val)
+            print("metric loss", metric_loss)
 
 
 def main():
@@ -85,7 +90,7 @@ def main():
     )
 
     trainset = CIFAR10_new(
-        root="./data", train=True, download=True, transform=online_transform
+        root="./data", train="train", download=True, transform=online_transform
     )
 
     # Need to drop last minibatch to prevent matrix multiplication erros

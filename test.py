@@ -44,7 +44,7 @@ def test(args, model, device, test_loader):
 def main():
     
     parser = argparse.ArgumentParser(description='Test SimCLR model')
-    parser.add_argument('--EPOCHS', default=1, type=int, help='Number of epochs for training')
+    parser.add_argument('--EPOCHS', default=10, type=int, help='Number of epochs for training')
     parser.add_argument('--BATCH_SIZE', default=64, type=int, help='Batch size')
     parser.add_argument('--LOG_INT', type=int, default=100, help='how many batches to wait before logging training status')
     parser.add_argument('--SAVED_MODEL', default='./ckpt/model.pth')

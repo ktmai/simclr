@@ -1,4 +1,5 @@
-"""Models used for training and testing SimCLR
+"""
+Models used for training and testing SimCLR
 
 Includes modified Resnet-50 encoder and linear classifier which includes all
 layers of Resnet-50 except for the projection head
@@ -28,10 +29,7 @@ class Encoder(nn.Module):
         self.base = nn.Sequential(*self.base)
         self.g = nn.Sequential(nn.Linear(2048, 128), nn.BatchNorm1d(128), nn.ReLU())
         self.transformation_classifier = nn.Sequential(
-            nn.Linear(2048, 128),
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, 4),
+            nn.Linear(2048, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Linear(128, 4),
         )
 
     def forward(self, x):
