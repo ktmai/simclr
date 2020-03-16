@@ -25,6 +25,43 @@ def train(args, model, device, train_loader, optimizer, epoch, criterion):
                 100. * batch_idx / len(train_loader), loss.item()))
 
 
+def build_adversarial_augmentations(args, model, device, train_loader, optimizer, criterion):
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = model(data)
+            orig = Variable(data, requires_grad=True)
+            loss = criterion(output, target)
+            for adv_opt in range(10):
+                # this is the method
+                perturbation = (alpha/255.0) * torch.sign(data.grad.data)
+                perturbation = torch.clamp((data.data + perturbation) - orig.data, min=-eps/255.0, max=eps/255.0)
+                inp.data = orig.data + perturbation
+
+                inp.grad.data.zero_()
+
+                ################################################################
+
+                # predict on the adversarial image, this inp is not the adversarial example we want, it's not yet clamped. And clamping can be done only after deprocessing.
+                pred_adv = np.argmax(model(inp).data.cpu().numpy())
+
+                #print("Iter [%3d/%3d]:  Prediction: %s"
+                #                %(i, num_iter, classes[pred_adv].split(',')[0]))
+
+
+                # deprocess image
+                adv = inp.data.cpu().numpy()[0]
+                pert = (adv-img).transpose(1,2,0)
+                adv = adv.transpose(1, 2, 0)
+                adv = (adv * std) + mean
+                adv = adv * 255.0
+                adv = adv[..., ::-1] # RGB to BGR
+                adv = np.clip(adv, 0, 255).astype(np.uint8)	
+                np.save(str(batch_idk) + "_" + str(adv_opt) + "eg.npy")
+
+
 def test(args, model, device, test_loader):
     model.eval()
     correct = 0
