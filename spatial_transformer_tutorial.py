@@ -1,29 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Spatial Transformer Networks Tutorial
-=====================================
-**Author**: `Ghassen HAMROUNI <https://github.com/GHamrouni>`_
-
-.. figure:: /_static/img/stn/FSeq.png
-
-In this tutorial, you will learn how to augment your network using
-a visual attention mechanism called spatial transformer
-networks. You can read more about the spatial transformer
-networks in the `DeepMind paper <https://arxiv.org/abs/1506.02025>`__
-
-Spatial transformer networks are a generalization of differentiable
-attention to any spatial transformation. Spatial transformer networks
-(STN for short) allow a neural network to learn how to perform spatial
-transformations on the input image in order to enhance the geometric
-invariance of the model.
-For example, it can crop a region of interest, scale and correct
-the orientation of an image. It can be a useful mechanism because CNNs
-are not invariant to rotation and scale and more general affine
-transformations.
-
-One of the best things about STN is the ability to simply plug it into
-any existing CNN with very little modification.
-"""
 # License: BSD
 # Author: Ghassen Hamrouni
 
@@ -36,22 +10,26 @@ import torchvision
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.optim.lr_scheduler import StepLR
+
+
+import torch
+import torch.nn as nn
+import torchvision.models as models
 
 plt.ion()  # interactive mode
-
-######################################################################
-# Loading the data
-# ----------------
-#
-# In this post we experiment with the classic MNIST dataset. Using a
-# standard convolutional network augmented with a spatial transformer
-# network.
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training dataset
 train_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR_10(
+    datasets.CIFAR10(
         root=".",
         train=True,
         download=True,
@@ -65,7 +43,7 @@ train_loader = torch.utils.data.DataLoader(
 )
 # Test dataset
 test_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR_10(
+    datasets.CIFAR10(
         root=".",
         train=False,
         transform=transforms.Compose(
@@ -77,33 +55,10 @@ test_loader = torch.utils.data.DataLoader(
     num_workers=4,
 )
 
-######################################################################
-# Depicting spatial transformer networks
-# --------------------------------------
-#
-# Spatial transformer networks boils down to three main components :
-#
-# -  The localization network is a regular CNN which regresses the
-#    transformation parameters. The transformation is never learned
-#    explicitly from this dataset, instead the network learns automatically
-#    the spatial transformations that enhances the global accuracy.
-# -  The grid generator generates a grid of coordinates in the input
-#    image corresponding to each pixel from the output image.
-# -  The sampler uses the parameters of the transformation and applies
-#    it to the input image.
-#
-# .. figure:: /_static/img/stn/stn-arch.png
-#
-# .. Note::
-#    We need the latest version of PyTorch that contains
-#    affine_grid and grid_sample modules.
-#
-
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
@@ -111,10 +66,10 @@ class Net(nn.Module):
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            nn.Conv2d(1, 8, kernel_size=7),
+            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False),
             nn.MaxPool2d(2, stride=2),
             nn.ReLU(True),
-            nn.Conv2d(8, 10, kernel_size=5),
+            nn.Conv2d(16, 10, kernel_size=5),
             nn.MaxPool2d(2, stride=2),
             nn.ReLU(True),
         )
@@ -135,6 +90,8 @@ class Net(nn.Module):
         xs = self.localization(x)
         xs = xs.view(-1, 10 * 3 * 3)
         theta = self.fc_loc(xs)
+        import pdb 
+        pdb.set_trace()
         theta = theta.view(-1, 2, 3)
 
         return x, theta
@@ -165,40 +122,32 @@ class Net(nn.Module):
 
 model = Net().to(device)
 
-######################################################################
-# Training the model
-# ------------------
-#
-# Now, let's use the SGD algorithm to train the model. The network is
-# learning the classification task in a supervised way. In the same time
-# the model is learning STN automatically in an end-to-end fashion.
-
-import argparse
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.optim.lr_scheduler import StepLR
-
-
 class DiscriminatorNet(nn.Module):
-    def __init__(self):
+    def __init__(self, base_model=models.resnet50):
         super(DiscriminatorNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 2)
+
+        self.base = []
+
+        # Amend Resnet-50
+        for name, module in base_model().named_children():
+            if name == "conv1":
+                module = nn.Conv2d(
+                    3, 64, kernel_size=3, stride=1, padding=1, bias=False
+                )
+            if not isinstance(module, nn.Linear) and not isinstance(
+                module, nn.MaxPool2d
+            ):
+                self.base.append(module)
+        self.base = nn.Sequential(*self.base)
+        self.g = nn.Sequential(
+            nn.Linear(2048, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Linear(128, 10)
+        )
 
     def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x)
+        x = self.base(x)
+        x = torch.flatten(x, start_dim=1)
+        out = self.g(x)
+        return out
 
 
 optimizer = optim.SGD(model.parameters(), lr=0.01)
@@ -217,7 +166,6 @@ def train(epoch):
     discriminator_step = True
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
-
         # optimizer.zero_grad()
         augmented = model.transform(data)
         augmented = augmented.to(device)
@@ -240,22 +188,17 @@ def train(epoch):
             optimizer.zero_grad()
             transformer_matrix = model.stn(data)[1]
             try:
-                MSE = torch.sum((identity_tensor - transformer_matrix)**2)
+                MSE = torch.sum((identity_tensor - transformer_matrix) ** 2)
 
             except:
-                MSE = torch.sum((identity_tensor[0:32] - transformer_matrix)**2)
-                
+                MSE = torch.sum((identity_tensor[0:32] - transformer_matrix) ** 2)
+
             perception_loss = 0.2 / (1 + MSE ** 2)
             print("perception loss", perception_loss)
             loss = perception_loss - discriminator_loss
             loss.backward()
             optimizer.step()
             discriminator_step = True
-
-
-#
-# A simple test procedure to measure STN the performances on MNIST.
-#
 
 
 def test():
@@ -284,16 +227,6 @@ def test():
         )
 
 
-######################################################################
-# Visualizing the STN results
-# ---------------------------
-#
-# Now, we will inspect the results of our learned visual attention
-# mechanism.
-#
-# We define a small helper function in order to visualize the
-# transformations while training.
-
 
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""
@@ -304,10 +237,6 @@ def convert_image_np(inp):
     inp = np.clip(inp, 0, 1)
     return inp
 
-
-# We want to visualize the output of the spatial transformers layer
-# after the training, we visualize a batch of input images and
-# the corresponding transformed batch using STN.
 
 
 def visualize_stn():
