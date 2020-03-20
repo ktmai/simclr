@@ -37,7 +37,7 @@ from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.ion()   # interactive mode
+plt.ion()  # interactive mode
 
 ######################################################################
 # Loading the data
@@ -51,17 +51,31 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training dataset
 train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST(root='.', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ])), batch_size=64, shuffle=True, num_workers=4)
+    datasets.MNIST(
+        root=".",
+        train=True,
+        download=True,
+        transform=transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+        ),
+    ),
+    batch_size=64,
+    shuffle=True,
+    num_workers=4,
+)
 # Test dataset
 test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST(root='.', train=False, transform=transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])), batch_size=64, shuffle=True, num_workers=4)
+    datasets.MNIST(
+        root=".",
+        train=False,
+        transform=transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+        ),
+    ),
+    batch_size=64,
+    shuffle=True,
+    num_workers=4,
+)
 
 ######################################################################
 # Depicting spatial transformer networks
@@ -102,19 +116,19 @@ class Net(nn.Module):
             nn.ReLU(True),
             nn.Conv2d(8, 10, kernel_size=5),
             nn.MaxPool2d(2, stride=2),
-            nn.ReLU(True)
+            nn.ReLU(True),
         )
 
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc = nn.Sequential(
-            nn.Linear(10 * 3 * 3, 32),
-            nn.ReLU(True),
-            nn.Linear(32, 3 * 2)
+            nn.Linear(10 * 3 * 3, 32), nn.ReLU(True), nn.Linear(32, 3 * 2)
         )
 
         # Initialize the weights/bias with identity transformation
         self.fc_loc[2].weight.data.zero_()
-        self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
+        self.fc_loc[2].bias.data.copy_(
+            torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
+        )
 
     # Spatial transformer network forward function
     def stn(self, x):
@@ -123,14 +137,21 @@ class Net(nn.Module):
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
+        return x, theta
+
+    def transform_with_theta(self, x, theta):
         grid = F.affine_grid(theta, x.size())
         x = F.grid_sample(x, grid)
+        return x
 
+    def transform(self, x):
+        x, theta = self.stn(x)
+        x = self.transform_with_theta(x, theta)
         return x
 
     def forward(self, x):
         # transform the input
-        x = self.stn(x)
+        x = self.transform(x)
 
         # Perform the usual forward pass
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
@@ -164,12 +185,12 @@ from torch.optim.lr_scheduler import StepLR
 class DiscriminatorNet(nn.Module):
     def __init__(self):
         super(DiscriminatorNet, self).__init__()
-        self.fc1 = nn.Linear(28*28, 25)
+        self.fc1 = nn.Linear(28 * 28, 25)
         self.fc2_drop = nn.Dropout(0.2)
         self.fc3 = nn.Linear(25, 2)
 
     def forward(self, x):
-        x = x.view(-1, 28*28)
+        x = x.view(-1, 28 * 28)
         x = F.relu(self.fc1(x))
         x = self.fc2_drop(x)
         return F.log_softmax(self.fc3(x), dim=1)
@@ -182,6 +203,9 @@ discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
 
 def train(epoch):
     import torch
+
+    identity_tensor = torch.load("identity_theta.pt")
+    identity_tensor = identity_tensor.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     discriminator.train()
     model.train()
@@ -190,8 +214,7 @@ def train(epoch):
         data, target = data.to(device), target.to(device)
 
         # optimizer.zero_grad()
-        augmented = model.stn(data)
-        #augmented = torch.ones(data.size()).float()
+        augmented = model.transform(data)
         augmented = augmented.to(device)
         true_targets = torch.ones(target.size()).long()
         false_targets = torch.zeros(target.size()).long()
@@ -199,9 +222,10 @@ def train(epoch):
         false_targets = false_targets.to(device)
         discriminator_out_true = discriminator(data)
         discriminator_out_false = discriminator(augmented)
-        discriminator_loss = criterion(discriminator_out_true, true_targets) + criterion(discriminator_out_false, false_targets)
-        print(discriminator_loss)
-        # Discriminator stuff
+        discriminator_loss = criterion(
+            discriminator_out_true, true_targets
+        ) + criterion(discriminator_out_false, false_targets)
+
         if discriminator_step:
             discriminator_opt.zero_grad()
             discriminator_loss.backward()
@@ -209,11 +233,26 @@ def train(epoch):
             discriminator_step = False
         else:
             optimizer.zero_grad()
-            perception_loss = 0.1 * F.l1_loss(data, augmented)
-            loss = - perception_loss - discriminator_loss
+            transformer_matrix = model.stn(data)[1]
+            try:
+                perception_loss = (
+                    torch.exp(-torch.sum((identity_tensor - transformer_matrix) ** 2))
+                    ** 2
+                )
+
+            except:
+                perception_loss = (
+                    torch.exp(
+                        -torch.sum((identity_tensor[0:32] - transformer_matrix) ** 2)
+                    )
+                    ** 2
+                )
+            print("perception loss", perception_loss)
+            loss = perception_loss - discriminator_loss
             loss.backward()
             optimizer.step()
             discriminator_step = True
+
 
 #
 # A simple test procedure to measure STN the performances on MNIST.
@@ -236,9 +275,15 @@ def test():
             correct += pred.eq(target.view_as(pred)).sum().item()
 
         test_loss /= len(test_loader.dataset)
-        print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'
-              .format(test_loss, correct, len(test_loader.dataset),
-                      100. * correct / len(test_loader.dataset)))
+        print(
+            "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
+                test_loss,
+                correct,
+                len(test_loader.dataset),
+                100.0 * correct / len(test_loader.dataset),
+            )
+        )
+
 
 ######################################################################
 # Visualizing the STN results
@@ -260,6 +305,7 @@ def convert_image_np(inp):
     inp = np.clip(inp, 0, 1)
     return inp
 
+
 # We want to visualize the output of the spatial transformers layer
 # after the training, we visualize a batch of input images and
 # the corresponding transformed batch using STN.
@@ -271,21 +317,22 @@ def visualize_stn():
         data = next(iter(test_loader))[0].to(device)
 
         input_tensor = data.cpu()
-        transformed_input_tensor = model.stn(data).cpu()
+        transformed_input_tensor = model.transform(data).cpu()
 
-        in_grid = convert_image_np(
-            torchvision.utils.make_grid(input_tensor))
+        in_grid = convert_image_np(torchvision.utils.make_grid(input_tensor))
 
         out_grid = convert_image_np(
-            torchvision.utils.make_grid(transformed_input_tensor))
+            torchvision.utils.make_grid(transformed_input_tensor)
+        )
 
         # Plot the results side-by-side
         f, axarr = plt.subplots(1, 2)
         axarr[0].imshow(in_grid)
-        axarr[0].set_title('Dataset Images')
+        axarr[0].set_title("Dataset Images")
 
         axarr[1].imshow(out_grid)
-        axarr[1].set_title('Transformed Images')
+        axarr[1].set_title("Transformed Images")
+
 
 for epoch in range(1, 20 + 1):
     train(epoch)
