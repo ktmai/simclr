@@ -183,7 +183,7 @@ def train(epoch):
                 MSE = torch.sum((identity_tensor[0:16] - transformer_matrix) ** 2)
 
             perception_loss = 0.2 / (1 + MSE ** 2)
-            print("perception loss", perception_loss)
+            #print("perception loss", perception_loss)
             loss = perception_loss - discriminator_loss
             loss.backward()
             optimizer.step()
@@ -249,7 +249,7 @@ def visualize_stn():
         axarr[1].set_title("Transformed Images")
 
 
-for epoch in range(1, 20 + 1):
+for epoch in range(1, 100):
     train(epoch)
     # Visualize the STN transformation on some input batch
     visualize_stn()
