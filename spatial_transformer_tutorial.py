@@ -25,7 +25,7 @@ import torchvision.models as models
 
 plt.ion()  # interactive mode
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cuda:1')
 
 # Training dataset
 train_loader = torch.utils.data.DataLoader(
@@ -37,23 +37,11 @@ train_loader = torch.utils.data.DataLoader(
             [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         ),
     ),
-    batch_size=64,
+    batch_size=2,
     shuffle=True,
     num_workers=4,
 )
 # Test dataset
-test_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10(
-        root=".",
-        train=False,
-        transform=transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        ),
-    ),
-    batch_size=64,
-    shuffle=True,
-    num_workers=4,
-)
 
 ### help from https://github.com/aicaffeinelife/Pytorch-STN/blob/master/models/STNModule.py
 class Net(nn.Module):
@@ -106,13 +94,6 @@ class Net(nn.Module):
         # transform the input
         x = self.transform(x)
 
-        # Perform the usual forward pass
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
 
@@ -189,33 +170,6 @@ def train(epoch):
             optimizer.step()
             discriminator_step = True
 
-
-def test():
-    with torch.no_grad():
-        model.eval()
-        test_loss = 0
-        correct = 0
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-
-            # sum up batch loss
-            test_loss += F.nll_loss(output, target, size_average=False).item()
-            # get the index of the max log-probability
-            pred = output.max(1, keepdim=True)[1]
-            correct += pred.eq(target.view_as(pred)).sum().item()
-
-        test_loss /= len(test_loader.dataset)
-        print(
-            "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
-                test_loss,
-                correct,
-                len(test_loader.dataset),
-                100.0 * correct / len(test_loader.dataset),
-            )
-        )
-
-
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""
     inp = inp.numpy().transpose((1, 2, 0))
@@ -229,7 +183,7 @@ def convert_image_np(inp):
 def visualize_stn():
     with torch.no_grad():
         # Get a batch of training data
-        data = next(iter(test_loader))[0].to(device)
+        data = next(iter(train_loader))[0].to(device)
 
         input_tensor = data.cpu()
         transformed_input_tensor = model.transform(data).cpu()
