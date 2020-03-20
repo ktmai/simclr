@@ -59,30 +59,22 @@ test_loader = torch.utils.data.DataLoader(
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, 10)
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(3, 6, 5),
             nn.ReLU(True),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.MaxPool2d(2),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(6, 16, 5),
             nn.ReLU(True),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.MaxPool2d(2),
-            nn.ReLU(True),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.MaxPool2d(2),
-            nn.ReLU(True),
+            nn.MaxPool2d(2, 2),
         )
 
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc = nn.Sequential(
-            nn.Linear(32 * 4 * 4, 1024), nn.ReLU(True), nn.Linear(1024, 3 * 2)
+            nn.Linear(400, 64), nn.ReLU(True), nn.Linear(64, 3 * 2)
         )
 
         # Initialize the weights/bias with identity transformation
@@ -94,7 +86,7 @@ class Net(nn.Module):
     # Spatial transformer network forward function
     def stn(self, x):
         xs = self.localization(x)
-        xs = xs.view(-1, 32 * 4 * 4)
+        xs = xs.view(-1, 16 * 5 * 5)
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
@@ -128,31 +120,23 @@ model = Net().to(device)
 
 
 class DiscriminatorNet(nn.Module):
-    def __init__(self, base_model=models.resnet50):
+    def __init__(self):
         super(DiscriminatorNet, self).__init__()
-
-        self.base = []
-
-        # Amend Resnet-50
-        for name, module in base_model().named_children():
-            if name == "conv1":
-                module = nn.Conv2d(
-                    3, 64, kernel_size=3, stride=1, padding=1, bias=False
-                )
-            if not isinstance(module, nn.Linear) and not isinstance(
-                module, nn.MaxPool2d
-            ):
-                self.base.append(module)
-        self.base = nn.Sequential(*self.base)
-        self.g = nn.Sequential(
-            nn.Linear(2048, 128), nn.BatchNorm1d(128), nn.ReLU(), nn.Linear(128, 10)
-        )
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 2)
 
     def forward(self, x):
-        x = self.base(x)
-        x = torch.flatten(x, start_dim=1)
-        out = self.g(x)
-        return out
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 
 optimizer = optim.SGD(model.parameters(), lr=0.01)
@@ -196,7 +180,7 @@ def train(epoch):
                 MSE = torch.sum((identity_tensor - transformer_matrix) ** 2)
 
             except:
-                MSE = torch.sum((identity_tensor[0:32] - transformer_matrix) ** 2)
+                MSE = torch.sum((identity_tensor[0:16] - transformer_matrix) ** 2)
 
             perception_loss = 0.2 / (1 + MSE ** 2)
             print("perception loss", perception_loss)
