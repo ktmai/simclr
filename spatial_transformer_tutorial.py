@@ -55,6 +55,7 @@ test_loader = torch.utils.data.DataLoader(
     num_workers=4,
 )
 
+### help from https://github.com/aicaffeinelife/Pytorch-STN/blob/master/models/STNModule.py
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -66,17 +67,22 @@ class Net(nn.Module):
 
         # Spatial transformer localization-network
         self.localization = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.MaxPool2d(2, stride=2),
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False),
             nn.ReLU(True),
-            nn.Conv2d(16, 10, kernel_size=5),
-            nn.MaxPool2d(2, stride=2),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.MaxPool2d(2),
+            nn.ReLU(True),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.MaxPool2d(2),
+            nn.ReLU(True),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.MaxPool2d(2),
             nn.ReLU(True),
         )
 
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc = nn.Sequential(
-            nn.Linear(10 * 3 * 3, 32), nn.ReLU(True), nn.Linear(32, 3 * 2)
+            nn.Linear(32 * 4 * 4, 1024), nn.ReLU(True), nn.Linear(1024, 3 * 2)
         )
 
         # Initialize the weights/bias with identity transformation
@@ -88,10 +94,8 @@ class Net(nn.Module):
     # Spatial transformer network forward function
     def stn(self, x):
         xs = self.localization(x)
-        xs = xs.view(-1, 10 * 3 * 3)
+        xs = xs.view(-1, 32 * 4 * 4)
         theta = self.fc_loc(xs)
-        import pdb 
-        pdb.set_trace()
         theta = theta.view(-1, 2, 3)
 
         return x, theta
@@ -121,6 +125,7 @@ class Net(nn.Module):
 
 
 model = Net().to(device)
+
 
 class DiscriminatorNet(nn.Module):
     def __init__(self, base_model=models.resnet50):
@@ -227,7 +232,6 @@ def test():
         )
 
 
-
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""
     inp = inp.numpy().transpose((1, 2, 0))
@@ -236,7 +240,6 @@ def convert_image_np(inp):
     inp = std * inp + mean
     inp = np.clip(inp, 0, 1)
     return inp
-
 
 
 def visualize_stn():
