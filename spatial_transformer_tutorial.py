@@ -51,7 +51,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training dataset
 train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST(
+    datasets.CIFAR_10(
         root=".",
         train=True,
         download=True,
@@ -65,7 +65,7 @@ train_loader = torch.utils.data.DataLoader(
 )
 # Test dataset
 test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST(
+    datasets.CIFAR_10(
         root=".",
         train=False,
         transform=transforms.Compose(
@@ -240,18 +240,12 @@ def train(epoch):
             optimizer.zero_grad()
             transformer_matrix = model.stn(data)[1]
             try:
-                perception_loss = (
-                    torch.exp(((
-                        -torch.sum((identity_tensor[0:32] - transformer_matrix) ** 2)
-                    )
-                    ** 2 )/ 20 )
+                MSE = torch.sum((identity_tensor - transformer_matrix)**2)
 
             except:
-                perception_loss = (
-                    torch.exp(((
-                        -torch.sum((identity_tensor[0:32] - transformer_matrix) ** 2)
-                    )
-                    ** 2 )/ 20 )
+                MSE = torch.sum((identity_tensor[0:32] - transformer_matrix)**2)
+                
+            perception_loss = 0.2 / (1 + MSE ** 2)
             print("perception loss", perception_loss)
             loss = perception_loss - discriminator_loss
             loss.backward()
