@@ -55,6 +55,15 @@ test_loader = torch.utils.data.DataLoader(
     num_workers=4,
 )
 
+
+class Flatten(nn.Module):
+    def __init__(self):
+        super(Flatten, self).__init__()
+
+    def forward(self, x):
+        return x.view(x.size(0), -1)
+
+
 ### help from https://github.com/aicaffeinelife/Pytorch-STN/blob/master/models/STNModule.py
 class Net(nn.Module):
     def __init__(self):
@@ -72,6 +81,18 @@ class Net(nn.Module):
             nn.MaxPool2d(2, 2),
         )
 
+        # Spatial transformer localization-network
+        self.colorization = nn.Sequential(
+            nn.Conv2d(3, 6, 5),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(6, 16, 5),
+            nn.ReLU(True),
+            nn.MaxPool2d(2, 2),
+            nn.Flatten(),
+            nn.Linear(400, 3),
+        )
+
         # Regressor for the 3 * 2 affine matrix
         self.fc_loc = nn.Sequential(
             nn.Linear(400, 64), nn.ReLU(True), nn.Linear(64, 3 * 2)
@@ -85,12 +106,23 @@ class Net(nn.Module):
 
     # Spatial transformer network forward function
     def stn(self, x):
+
         xs = self.localization(x)
         xs = xs.view(-1, 16 * 5 * 5)
         theta = self.fc_loc(xs)
         theta = theta.view(-1, 2, 3)
 
         return x, theta
+
+    def color_transformer(self, x):
+        color_alter_params = self.colorization(x)
+        transformed = torch.zeros(x.size())
+
+        for i in range(x.size()[0]):
+            for j in range(3):
+                transformed[i, j, :, :] = x[i, j, :, :] * color_alter_params[i][j]
+
+        return transformed
 
     def transform_with_theta(self, x, theta):
         grid = F.affine_grid(theta, x.size())
@@ -100,6 +132,7 @@ class Net(nn.Module):
     def transform(self, x):
         x, theta = self.stn(x)
         x = self.transform_with_theta(x, theta)
+        x = self.color_transformer(x)
         return x
 
     def forward(self, x):
@@ -176,15 +209,20 @@ def train(epoch):
         else:
             optimizer.zero_grad()
             transformer_matrix = model.stn(data)[1]
+            color_params = model.colorization(data)
+
             try:
                 MSE = torch.sum((identity_tensor - transformer_matrix) ** 2)
-
+                color_MSE = torch.sum((color_params) ** 2)
             except:
+                color_MSE = torch.sum((color_params[0:16]) ** 2)
                 MSE = torch.sum((identity_tensor[0:16] - transformer_matrix) ** 2)
 
             perception_loss = 0.2 / (1 + MSE ** 2)
-            #print("perception loss", perception_loss)
-            loss = perception_loss - discriminator_loss
+            color_loss = 0.2 / (1 + color_MSE ** 2)
+            # print("perception loss", perception_loss)
+
+            loss = color_loss + perception_loss - discriminator_loss
             loss.backward()
             optimizer.step()
             discriminator_step = True
