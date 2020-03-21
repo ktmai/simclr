@@ -25,6 +25,7 @@ import torchvision.models as models
 
 plt.ion()  # interactive mode
 
+#device = torch.device('cuda:1')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training dataset
@@ -89,7 +90,7 @@ class Net(nn.Module):
             nn.Conv2d(6, 16, 5),
             nn.ReLU(True),
             nn.MaxPool2d(2, 2),
-            nn.Flatten(),
+            Flatten(),
             nn.Linear(400, 3),
         )
 
