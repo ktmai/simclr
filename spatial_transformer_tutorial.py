@@ -12,7 +12,7 @@ import numpy as np
 import argparse
 from torch.optim.lr_scheduler import StepLR
 from transformer import Transformer
-from discriminator import DiscriminatorNet
+from discriminator_resnet import DiscriminatorNet
 from data_utils import train_loader
 from utils import visualize_stn
 
@@ -76,7 +76,7 @@ def main():
     discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
     for epoch in range(1, 100):
         print("epoch", epoch)
-        # train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
+        train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
         # Visualize the STN transformation on some input batch
         torch.save(transformer.state_dict(), "temp_transformer.pt")
         visualize_stn(train_loader=train_loader, temp_model_path="temp_transformer.pt")
