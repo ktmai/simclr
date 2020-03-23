@@ -54,8 +54,8 @@ def train(epoch, device, discriminator, transformer, transformer_opt, discrimina
                 color_MSE = torch.sum((color_params[0:16]) ** 2)
                 MSE = torch.sum((identity_tensor[0:16] - transformer_matrix) ** 2)
 
-            perception_loss = 0.2 / (1 + MSE ** 2)
-            color_loss = 0.5 / (1 + color_MSE ** 2)
+            perception_loss = 1 / (1 + MSE ** 2)
+            color_loss = 1 / (1 + color_MSE ** 2)
             # print("perception loss", perception_loss)
 
             loss = color_loss + perception_loss - discriminator_loss
