@@ -1,5 +1,5 @@
 # License: BSD
-# Author: Ghassen Hamrouni
+# Original Author: Ghassen Hamrouni altered now
 
 from __future__ import print_function
 import torch.nn as nn
@@ -14,7 +14,7 @@ from torch.optim.lr_scheduler import StepLR
 from transformer import Transformer
 from discriminator import DiscriminatorNet
 from data_utils import train_loader
-
+from utils import visualize_stn
 
 def train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt):
     identity_tensor = torch.load("identity_theta.pt")
@@ -76,14 +76,14 @@ def main():
     discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
     for epoch in range(1, 100):
         print("epoch", epoch)
-        train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
+        # train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
         # Visualize the STN transformation on some input batch
         torch.save(transformer.state_dict(), "temp_transformer.pt")
-        visualize_stn()
+        visualize_stn(train_loader=train_loader, temp_model_path="temp_transformer.pt")
     
-    plt.ioff()
-    plt.savefig(str(epoch) + "_example.png")
-    plt.close()
+        plt.ioff()
+        plt.savefig(str(epoch) + "_example.png")
+        plt.close()
 
 if __name__ == "__main__":
     main()
