@@ -2,30 +2,24 @@ import torch
 import torchvision.models as models
 import torch.nn as nn
 import torch.nn.functional as F
-
+from resnet import ResNet50
 
 class DiscriminatorNet(nn.Module):
     
     def __init__(self, base_model = models.resnet50):
         super(DiscriminatorNet, self).__init__()
         
-        self.base = []
-        
-        # Amend Resnet-50
-        for name, module in base_model().named_children():
-            if name == 'conv1':
-                module = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-            if not isinstance(module, nn.Linear) and not isinstance(module, nn.MaxPool2d):
-                self.base.append(module)
-        self.base = nn.Sequential(*self.base)
-        self.g = nn.Sequential(nn.Linear(2048, 128), nn.BatchNorm1d(128),
-                               nn.ReLU(), nn.Linear(128, 2))
+        self.base = ResNet50(num_classes=2)
+       # self.g = nn.Sequential(nn.Linear(2048, 128), nn.BatchNorm1d(128),
+       #                        nn.ReLU(), nn.Linear(128, 2))
         
     def forward(self, x):
         x = self.base(x)
-        x = torch.flatten(x, start_dim = 1)
-        out = self.g(x)
-        return out
+        #x = torch.flatten(x, start_dim = 1)
+        #import pdb 
+        #pdb.set_trace()
+        #out = self.g(x)
+        return x
 
 #class DiscriminatorNet(nn.Module):
 #    def __init__(self):
