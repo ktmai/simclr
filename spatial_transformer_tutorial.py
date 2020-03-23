@@ -7,7 +7,6 @@ import torch.nn.functional as F
 import torch
 import torch.optim as optim
 import torchvision
-from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
@@ -15,37 +14,11 @@ from torch.optim.lr_scheduler import StepLR
 import torchvision.models as models
 from transformer import Net
 from discriminator import DiscriminatorNet
+from data_utils import train_loader
 plt.ion()  # interactive mode
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Training dataset
-train_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10(
-        root=".",
-        train=True,
-        download=True,
-        transform=transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        ),
-    ),
-    batch_size=64,
-    shuffle=True,
-    num_workers=4,
-)
-# Test dataset
-test_loader = torch.utils.data.DataLoader(
-    datasets.CIFAR10(
-        root=".",
-        train=False,
-        transform=transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        ),
-    ),
-    batch_size=64,
-    shuffle=True,
-    num_workers=4,
-)
 
 
 
