@@ -25,7 +25,7 @@ import torchvision.models as models
 
 plt.ion()  # interactive mode
 
-#device = torch.device('cuda:1')
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Training dataset
@@ -102,7 +102,7 @@ class Net(nn.Module):
         # Initialize the weights/bias with identity transformation
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(
-            torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
+		torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
         )
 
     # Spatial transformer network forward function
@@ -229,32 +229,6 @@ def train(epoch):
             discriminator_step = True
 
 
-def test():
-    with torch.no_grad():
-        model.eval()
-        test_loss = 0
-        correct = 0
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-
-            # sum up batch loss
-            test_loss += F.nll_loss(output, target, size_average=False).item()
-            # get the index of the max log-probability
-            pred = output.max(1, keepdim=True)[1]
-            correct += pred.eq(target.view_as(pred)).sum().item()
-
-        test_loss /= len(test_loader.dataset)
-        print(
-            "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
-                test_loss,
-                correct,
-                len(test_loader.dataset),
-                100.0 * correct / len(test_loader.dataset),
-            )
-        )
-
-
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""
     inp = inp.numpy().transpose((1, 2, 0))
@@ -268,10 +242,12 @@ def convert_image_np(inp):
 def visualize_stn():
     with torch.no_grad():
         # Get a batch of training data
-        data = next(iter(test_loader))[0].to(device)
+        cpu_model = Net()
+        cpu_model.load_state_dict(torch.load("temp_model.pt"))
 
+        data = next(iter(train_loader))[0]
         input_tensor = data.cpu()
-        transformed_input_tensor = model.transform(data).cpu()
+        transformed_input_tensor = cpu_model.transform(data).cpu()
 
         in_grid = convert_image_np(torchvision.utils.make_grid(input_tensor))
 
@@ -289,8 +265,10 @@ def visualize_stn():
 
 
 for epoch in range(1, 100):
+    print("epoch", epoch)
     train(epoch)
     # Visualize the STN transformation on some input batch
+    torch.save(model.state_dict(), "temp_model.pt")
     visualize_stn()
 
     plt.ioff()
