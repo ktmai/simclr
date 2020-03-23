@@ -8,9 +8,9 @@ class Flatten(nn.Module):
         batch_size = x.shape[0]
         return x.view(batch_size, -1)
 
-class Net(nn.Module):
+class Transformer(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super(Transformer, self).__init__()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, 10)
 
