@@ -76,6 +76,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.linear = nn.Linear(512*block.expansion, num_classes)
+        self.supervised_linear = nn.Linear(512*block.expansion, 10)
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -85,7 +86,7 @@ class ResNet(nn.Module):
             self.in_planes = planes * block.expansion
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def up_to_linear_layer(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.layer1(out)
         out = self.layer2(out)
@@ -93,6 +94,15 @@ class ResNet(nn.Module):
         out = self.layer4(out)
         out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
+        return out
+
+    def supervised_classification(self, x):
+        features = self.up_to_linear_layer(x)
+        logits = self.supervised_linear(features)
+        return logits
+
+    def forward(self, x):
+        out = self.up_to_linear_layer(x)
         out = self.linear(out)
         return out
 

@@ -74,9 +74,9 @@ def main():
     transformer_opt = optim.SGD(transformer.parameters(), lr=0.01)
     discriminator = DiscriminatorNet().to(device)
     discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
-    for epoch in range(1, 100):
+    for epoch in range(1, 5):
         print("epoch", epoch)
-        train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
+        # train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
         # Visualize the STN transformation on some input batch
         torch.save(transformer.state_dict(), "temp_transformer.pt")
         visualize_stn(train_loader=train_loader, temp_model_path="temp_transformer.pt")
@@ -84,6 +84,10 @@ def main():
         plt.ioff()
         plt.savefig(str(epoch) + "_example.png")
         plt.close()
+    
+    torch.save(transformer.state_dict(), "trained_transformer.pt")
+    torch.save(discriminator, "trained_discriminator.pt")
+
 
 if __name__ == "__main__":
     main()
