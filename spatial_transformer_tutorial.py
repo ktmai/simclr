@@ -74,12 +74,12 @@ def main():
     train_loader = train_loader_func()
     for epoch in range(1, 20):
         print("epoch", epoch)
-        train(epoch, train_loader, device, discriminator, transformer, transformer_opt, discriminator_opt)
+        # train(epoch, train_loader, device, discriminator, transformer, transformer_opt, discriminator_opt)
         # Visualize the STN transformation on some input batch
         torch.save(transformer.state_dict(), "temp_transformer.pt")
         visualize_stn(
             train_loader=train_loader,
-            temp_model_path="temp_transformer.pt")
+            temp_model_path="trained_discriminator.pt")
 
         plt.ioff()
         plt.savefig(str(epoch) + "_example.png")
