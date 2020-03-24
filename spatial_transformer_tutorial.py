@@ -49,13 +49,8 @@ def train(epoch, train_loader, device, discriminator, transformer,
             transformer_matrix = transformer.stn(data)[1]
             color_params = transformer.colorization(data)
 
-            try:
-                MSE = torch.sum((identity_tensor - transformer_matrix) ** 2)
-                color_MSE = torch.sum((color_params) ** 2)
-            except BaseException:
-                color_MSE = torch.sum((color_params[0:16]) ** 2)
-                MSE = torch.sum(
-                    (identity_tensor[0: 16] - transformer_matrix) ** 2)
+            color_MSE = torch.sum((color_params[0:data.size()[0]]) ** 2)
+            MSE = torch.sum((identity_tensor[0:data.size()[0]] - transformer_matrix) ** 2)
 
             perception_loss = 1 / (1 + MSE ** 2)
             color_loss = 1 / (1 + color_MSE ** 2)
@@ -77,7 +72,7 @@ def main():
     discriminator = DiscriminatorNet().to(device)
     discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
     train_loader = train_loader_func()
-    for epoch in range(1, 5):
+    for epoch in range(1, 20):
         print("epoch", epoch)
         train(epoch, train_loader, device, discriminator, transformer, transformer_opt, discriminator_opt)
         # Visualize the STN transformation on some input batch
