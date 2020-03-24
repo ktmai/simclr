@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 import numpy as np
 import torchvision
-import torch 
+import torch
+
 
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""

@@ -1,12 +1,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 ### help from https://github.com/aicaffeinelife/Pytorch-STN/blob/master/models/STNModule.py
+
 
 class Flatten(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
         return x.view(batch_size, -1)
+
 
 class Transformer(nn.Module):
     def __init__(self):
@@ -44,7 +47,7 @@ class Transformer(nn.Module):
         # Initialize the weights/bias with identity transformation
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(
-		torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
+            torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
         )
 
     # Spatial transformer network forward function

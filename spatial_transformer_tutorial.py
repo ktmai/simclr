@@ -13,10 +13,12 @@ import argparse
 from torch.optim.lr_scheduler import StepLR
 from transformer import Transformer
 from discriminator_resnet import DiscriminatorNet
-from data_utils import train_loader
+from data_utils import train_loader_func
 from utils import visualize_stn
 
-def train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt):
+
+def train(epoch, train_loader, device, discriminator, transformer,
+          transformer_opt, discriminator_opt):
     identity_tensor = torch.load("identity_theta.pt")
     identity_tensor = identity_tensor.to(device)
     criterion = torch.nn.CrossEntropyLoss()
@@ -50,9 +52,10 @@ def train(epoch, device, discriminator, transformer, transformer_opt, discrimina
             try:
                 MSE = torch.sum((identity_tensor - transformer_matrix) ** 2)
                 color_MSE = torch.sum((color_params) ** 2)
-            except:
+            except BaseException:
                 color_MSE = torch.sum((color_params[0:16]) ** 2)
-                MSE = torch.sum((identity_tensor[0:16] - transformer_matrix) ** 2)
+                MSE = torch.sum(
+                    (identity_tensor[0: 16] - transformer_matrix) ** 2)
 
             perception_loss = 1 / (1 + MSE ** 2)
             color_loss = 1 / (1 + color_MSE ** 2)
@@ -64,7 +67,6 @@ def train(epoch, device, discriminator, transformer, transformer_opt, discrimina
             discriminator_step = True
 
 
-
 def main():
     plt.ion()  # interactive mode
 
@@ -74,20 +76,22 @@ def main():
     transformer_opt = optim.SGD(transformer.parameters(), lr=0.01)
     discriminator = DiscriminatorNet().to(device)
     discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
+    train_loader = train_loader_func()
     for epoch in range(1, 5):
         print("epoch", epoch)
         # train(epoch, device, discriminator, transformer, transformer_opt, discriminator_opt)
         # Visualize the STN transformation on some input batch
         torch.save(transformer.state_dict(), "temp_transformer.pt")
-        visualize_stn(train_loader=train_loader, temp_model_path="temp_transformer.pt")
-    
+        visualize_stn(
+            train_loader=train_loader,
+            temp_model_path="temp_transformer.pt")
+
         plt.ioff()
         plt.savefig(str(epoch) + "_example.png")
         plt.close()
-    
-    torch.save(transformer.state_dict(), "trained_transformer.pt")
-    torch.save(discriminator, "trained_discriminator.pt")
 
+    torch.save(discriminator.state_dict(), "trained_discriminator.pt")
+    torch.save(transformer.state_dict(), "trained_transformer.pt")
 
 if __name__ == "__main__":
     main()
