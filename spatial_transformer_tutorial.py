@@ -44,8 +44,8 @@ def train(
         # discriminator_scores = discriminator(xj)
         discriminator_opt.zero_grad()
         discriminator_loss = (
-            criterion(discriminator(xj), torch.ones(xj.size()[0]))
-            + criterion(discriminator(xi), torch.zeros(xi.size()[0]))
+            criterion(discriminator(xj), torch.ones(xj.size()[0]).to(device))
+            + criterion(discriminator(xi), torch.zeros(xi.size()[0]).to(device))
         ) / 2
         discriminator_loss.backward(retain_graph=True) # TODO hack need to understand
         discriminator_opt.step()
@@ -70,7 +70,7 @@ def train(
         
             transformer_opt.zero_grad()
             transformer_loss += criterion(
-                discriminator(xj), torch.zeros(xj.size()[0])
+                discriminator(xj), torch.zeros(xj.size()[0]).to(device)
             )
             transformer_loss.backward()
             transformer_opt.step()
@@ -78,14 +78,14 @@ def train(
 
         transformer_opt.zero_grad()
         transformer_loss = criterion(
-            discriminator(xj), torch.zeros(xj.size()[0])
+            discriminator(xj), torch.zeros(xj.size()[0]).to(device)
         )
         transformer_loss.backward()
         transformer_opt.step()
 
 
-        if batch_idx % 1000 == 0:
-
+        if batch_idx % 10 == 0:
+            break
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.10f}".format(
                     epoch + 1,

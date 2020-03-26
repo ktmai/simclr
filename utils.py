@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torchvision
 import torch
-from RotationTransformer import RotationTransformer
+#from RotationTransformer import RotationTransformer
 from transformer import Transformer
 
 def convert_image_np(inp):
