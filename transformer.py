@@ -103,7 +103,7 @@ class Transformer(nn.Module):
         return x
 
     def forward(self, x):
-        x, theta = self.stn(x)
-        x = self.transform_with_theta(x, theta)
+        # x, theta = self.stn(x)
+        # x = self.transform_with_theta(x, theta)
         x = self.color_transformer(x)
         return x

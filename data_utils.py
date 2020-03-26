@@ -26,7 +26,7 @@ def train_loader_func(NUM_TRAIN=49000, NUM_VAL=1000):
         root=".",
         train=True,
         transform=transforms.Compose(
-            [transforms.ToTensor()]
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         ),
     )
 

@@ -3,6 +3,7 @@ import numpy as np
 import torchvision
 import torch
 from RotationTransformer import RotationTransformer
+from transformer import Transformer
 
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""
@@ -10,20 +11,20 @@ def convert_image_np(inp):
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
     inp = std * inp + mean
-    # inp = np.clip(inp, 0, 1)
+    inp = np.clip(inp, 0, 1)
     return inp
 
 
 def visualize_stn(train_loader, temp_model_path):
     with torch.no_grad():
         # Get a batch of training data
-        cpu_model = RotationTransformer()
+        cpu_model = Transformer()
         cpu_model.load_state_dict(torch.load(temp_model_path))
 
         data = next(iter(train_loader))[0]
         input_tensor = data.cpu()
-        augmented, _, not_augmented, _ = cpu_model(data)
-        transformed_input = torch.cat([augmented, not_augmented], dim=0)
+        transformed_input = cpu_model(data)
+        # transformed_input = torch.cat([augmented, not_augmented], dim=0)
         transformed_input_tensor = transformed_input.cpu()
 
         in_grid = convert_image_np(torchvision.utils.make_grid(input_tensor))

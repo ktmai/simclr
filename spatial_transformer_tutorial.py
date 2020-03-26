@@ -31,29 +31,26 @@ def train(
     model_opt,
     loss_func,
 ):
-
+    criterion = torch.nn.BCELoss()
     model.train()
     discriminator.train()
     transformer.train()
 
-    criterion = torch.nn.BCELoss()
-
     for batch_idx, (xi, _) in enumerate(train_loader):
-        # to device stuff
         xi = xi.to(device)
         xj = transformer(xi)
+        xj = xj.to(device)
         
-        discriminator_scores = discriminator(xj)
+        # discriminator_scores = discriminator(xj)
+        discriminator_opt.zero_grad()
         discriminator_loss = (
             criterion(discriminator(xj), torch.ones(xj.size()[0]))
             + criterion(discriminator(xi), torch.zeros(xi.size()[0]))
         ) / 2
-
-        discriminator_opt.zero_grad()
-        discriminator_loss.backward()
+        discriminator_loss.backward(retain_graph=True) # TODO hack need to understand
         discriminator_opt.step()
 
-        xj = transformer(xi)
+        
         discriminator_scores = discriminator(xj)
 
         if torch.mean(discriminator_scores) < 0.5:
@@ -86,8 +83,9 @@ def train(
         transformer_loss.backward()
         transformer_opt.step()
 
-        
-        if batch_idx % 100 == 0:
+
+        if batch_idx % 1000 == 0:
+
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.10f}".format(
                     epoch + 1,
@@ -108,18 +106,16 @@ def main():
 
     loss_func = losses.NTXentLoss(0.5)
 
-    transformer = Transformer()
-    discriminator = RotationClassifier()
+    transformer = Transformer().to(device)
+    discriminator = RotationClassifier().to(device)
     model = Encoder().to(device)
     model_opt = optim.Adam(model.parameters())
 
-    transformer = transformer.to(device)
     transformer_opt = optim.Adam(transformer.parameters(), lr=0.01)
-    discriminator = discriminator.to(device)
     discriminator_opt = optim.SGD(discriminator.parameters(), lr=0.01)
     train_loader = train_loader_func()
 
-    for epoch in range(1, 20):
+    for epoch in range(1, 200):
         print("epoch", epoch)
         train(
             epoch=epoch,
@@ -136,7 +132,7 @@ def main():
         # Visualize the STN transformation on some input batch
         torch.save(transformer.state_dict(), "temp_transformer.pt")
         visualize_stn(
-            train_loader=train_loader, temp_model_path="trained_discriminator.pt"
+            train_loader=train_loader, temp_model_path="temp_transformer.pt"
         )
 
         plt.ioff()
