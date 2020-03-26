@@ -17,7 +17,7 @@ from data_utils import train_loader_func
 from utils import visualize_stn
 from models import Encoder
 from pytorch_metric_learning import losses
-
+from resnet import ResNet50
 
 def train(
     epoch,
@@ -85,7 +85,12 @@ def train(
 
 
         if batch_idx % 10 == 0:
+            # Visualize the STN transformation on some input batch
             break
+            torch.save(transformer.state_dict(), "temp_transformer.pt")
+            visualize_stn(
+                train_loader=train_loader, temp_model_path="temp_transformer.pt"
+            )
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.10f}".format(
                     epoch + 1,
@@ -108,7 +113,7 @@ def main():
 
     transformer = Transformer().to(device)
     discriminator = RotationClassifier().to(device)
-    model = Encoder().to(device)
+    model = ResNet50(num_classes=10).to(device)
     model_opt = optim.Adam(model.parameters())
 
     transformer_opt = optim.Adam(transformer.parameters(), lr=0.01)
