@@ -2,8 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import torchvision
-import kornia
-
+from torchvision.transforms.functional import rotate
 
 class RotationTransformer(nn.Module):
     def __init__(self):
@@ -36,7 +35,7 @@ class RotationTransformer(nn.Module):
         not_augmented_targets = []
         for index, image in enumerate(input_images):
             if rotation_factor[index] != 0:
-                augmented.append(kornia.rotate(image, rotation_factor[index]*15))
+                augmented.append(rotate(image, rotation_factor[index]*15))
                 augmented_targets.append(1)
             else:
                 not_augmented.append(kornia.rotate(image, rotation_factor[index]*15))
