@@ -10,7 +10,7 @@ class RotationClassifier(nn.Module):
         self.dropout1 = nn.Dropout2d(0.25)
         self.dropout2 = nn.Dropout2d(0.5)
         self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 8)
+        self.fc2 = nn.Linear(128, 1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -24,5 +24,5 @@ class RotationClassifier(nn.Module):
         x = F.relu(x)
         x = self.dropout2(x)
         x = self.fc2(x)
-        x = F.log_softmax(x, dim=1)
+        x = F.sigmoid(x)
         return x

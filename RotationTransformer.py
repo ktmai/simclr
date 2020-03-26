@@ -28,10 +28,21 @@ class RotationTransformer(nn.Module):
         x = F.relu(x)
         x = self.dropout2(x)
         x = self.fc2(x)
-        x = F.log_softmax(x)
-        rotation_factor = torch.tensor(torch.max(x, dim=1)[1])
-        rotated_images = []
+        rotation_logits = F.softmax(x)
+        rotation_factor = torch.tensor(torch.max(rotation_logits, dim=1)[1])
+        augmented = []
+        not_augmented = []
+        augmented_targets = []
+        not_augmented_targets = []
         for index, image in enumerate(input_images):
-            rotated_images.append(kornia.rotate(image, rotation_factor[index]*15))
-        x = torch.stack(rotated_images)
-        return x, rotation_factor
+            if rotation_factor[index] != 0:
+                augmented.append(kornia.rotate(image, rotation_factor[index]*15))
+                augmented_targets.append(1)
+            else:
+                not_augmented.append(kornia.rotate(image, rotation_factor[index]*15))
+                not_augmented_targets.append(rotation_factor[index])
+        augmented = torch.stack(augmented)
+        not_augmented = torch.stack(not_augmented)
+        augmented_targets = torch.tensor(augmented_targets, dtype=torch.float)
+        not_augmented_targets = torch.tensor(not_augmented_targets, dtype=torch.float)
+        return augmented, augmented_targets, not_augmented, not_augmented_targets

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torchvision
 import torch
-
+from RotationTransformer import RotationTransformer
 
 def convert_image_np(inp):
     """Convert a Tensor to numpy image."""
@@ -15,16 +15,16 @@ def convert_image_np(inp):
 
 
 def visualize_stn(train_loader, temp_model_path):
-    from transformer import Transformer
-
     with torch.no_grad():
         # Get a batch of training data
-        cpu_model = Transformer()
+        cpu_model = RotationTransformer()
         cpu_model.load_state_dict(torch.load(temp_model_path))
 
         data = next(iter(train_loader))[0]
         input_tensor = data.cpu()
-        transformed_input_tensor = cpu_model.transform(data).cpu()
+        augmented, _, not_augmented, _ = cpu_model(data)
+        transformed_input = torch.cat([augmented, not_augmented], dim=0)
+        transformed_input_tensor = transformed_input.cpu()
 
         in_grid = convert_image_np(torchvision.utils.make_grid(input_tensor))
 
@@ -39,3 +39,6 @@ def visualize_stn(train_loader, temp_model_path):
 
         axarr[1].imshow(out_grid)
         axarr[1].set_title("Transformed Images")
+
+if __name__ == '__main__':
+    main()

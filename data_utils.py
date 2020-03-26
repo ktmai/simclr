@@ -26,7 +26,7 @@ def train_loader_func(NUM_TRAIN=49000, NUM_VAL=1000):
         root=".",
         train=True,
         transform=transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+            [transforms.ToTensor()]
         ),
     )
 
@@ -50,3 +50,35 @@ def val_loader_func(NUM_TRAIN=49000, NUM_VAL=1000):
         cifar10_val, batch_size=64, sampler=ChunkSampler(NUM_VAL, NUM_TRAIN)
     )
     return val_loader_func
+
+
+def mnist_train_loader_func(NUM_TRAIN=49000, NUM_VAL=1000):
+    mnist_train = datasets.MNIST(
+        root=".",
+        train=True,
+        transform=transforms.Compose(
+            [transforms.ToTensor()]
+        ),
+    )
+
+    mnist_train_loader_func = DataLoader(
+        mnist_train, batch_size=64, sampler=ChunkSampler(NUM_TRAIN)
+    )
+
+    return mnist_train_loader_func
+
+
+def mnist_val_loader_func(NUM_TRAIN=49000, NUM_VAL=1000):
+    mnist_val = datasets.MNIST(
+        root=".",
+        train=True,
+        download=True,
+        transform=transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+        ),
+    )
+
+    mnist_val_loader_func = DataLoader(
+        mnist_val, batch_size=64, sampler=ChunkSampler(NUM_VAL, NUM_TRAIN)
+    )
+    return mnist_val_loader_func
