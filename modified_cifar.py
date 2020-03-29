@@ -7,12 +7,12 @@ import os
 import os.path
 import numpy as np
 import sys
-from torchvision.datasets.vision import VisionDataset
+from torch.utils.data import Dataset, DataLoader
 
 
-class CIFAR10_TANDA(VisionDataset):
+class CIFAR10_TANDA(Dataset):
     def __init__(self, root):
-        super(CIFAR10_TANDA, self).__init__(root)
+        super(CIFAR10_TANDA, self).__init__()
 
         (
             transformed_batches,
@@ -33,8 +33,8 @@ class CIFAR10_TANDA(VisionDataset):
         """
         img1, img2 = self.not_transformed_data[index], self.transformed_data[index]
 
-        img1 = Image.fromarray(img1)
-        img2 = Image.fromarray(img2)
+        img1 = Image.fromarray(img1.astype("uint8").reshape(32, 32, 3))
+        img2 = Image.fromarray(img2.astype("uint8").reshape(32, 32, 3))
 
         target = 1  ## dummy target not actually used
 
@@ -61,7 +61,9 @@ class CIFAR10_TANDA(VisionDataset):
         for a_path in batch_paths:
             batch = np.load(a_path)
             for img in batch:
-                data_arr.append(img)
+                data_arr.append(img.reshape(3, 32, 32))
+
+        data_arr = np.array(data_arr)
 
         return data_arr
 
