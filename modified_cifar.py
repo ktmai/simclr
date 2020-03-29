@@ -33,9 +33,6 @@ class CIFAR10_TANDA(Dataset):
         """
         img1, img2 = self.not_transformed_data[index], self.transformed_data[index]
 
-        img1 = Image.fromarray(img1.astype("uint8").reshape(32, 32, 3))
-        img2 = Image.fromarray(img2.astype("uint8").reshape(32, 32, 3))
-
         target = 1  ## dummy target not actually used
 
         return img1, img2, target
