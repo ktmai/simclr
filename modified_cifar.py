@@ -28,7 +28,7 @@ class CIFAR10_TANDA(VisionDataset):
 
         Returns:
             tuple: (img1, img2, target) where img1 and img2 are identical
-            samples with random transformations target is index of the target 
+            samples with random transformations target is index of the target
             class.
         """
         img1, img2 = self.not_transformed_data[index], self.transformed_data[index]
