@@ -31,22 +31,36 @@ class CIFAR10_TANDA(Dataset):
             samples with random transformations target is index of the target
             class.
         """
+        self.shuffle_data()
         img1, img2 = self.not_transformed_data[index], self.transformed_data[index]
-
         target = 1  ## dummy target not actually used
 
         return img1, img2, target
 
     def __len__(self):
-        return len(self.data)
+        return len(self.transformed_data)
 
-    def get_transformed_and_not_batches(self, root):
+    def shuffle_data(self):
+        # shuffle hack TODO fix this
+        import random
+
+        zipped = list(zip(self.not_transformed_data, self.transformed_data))
+        random.shuffle(zipped)
+        self.not_transformed_data, self.transformed_data = zip(*zipped)
+
+    def get_and_separate_paths(self, directory):
         import glob
 
-        all_paths = glob.glob(root + "*npy")
+        all_paths = glob.glob(directory + "*npy")
         not_transformed_paths = [x for x in all_paths if "not" in x]
         transformed_paths = [x for x in all_paths if "not" not in x]
         assert self.common_member(transformed_paths, not_transformed_paths) == False
+        return transformed_paths, not_transformed_paths
+
+    def get_transformed_and_not_batches(self, root):
+        transformed_paths, not_transformed_paths = self.get_and_separate_paths(
+            directory=root
+        )
         transformed_paths = self.sort_strings_based_on_digits(transformed_paths)
         not_transformed_paths = self.sort_strings_based_on_digits(not_transformed_paths)
         return transformed_paths, not_transformed_paths

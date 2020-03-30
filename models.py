@@ -7,29 +7,29 @@ layers of Resnet-50 except for the projection head
 import torch
 import torch.nn as nn
 import torchvision.models as models
-
+from resnet import ResNet50
 
 class Encoder(nn.Module):
-    def __init__(self, base_model=models.resnet50):
+    def __init__(self):
         super(Encoder, self).__init__()
 
-        self.base = []
-
+        #self.base = []
+#
         # Amend Resnet-50
-        for name, module in base_model().named_children():
-            if name == "conv1":
-                module = nn.Conv2d(
-                    3, 64, kernel_size=3, stride=1, padding=1, bias=False
-                )
-            if not isinstance(module, nn.Linear) and not isinstance(
-                module, nn.MaxPool2d
-            ):
-                self.base.append(module)
-        self.base = nn.Sequential(*self.base)
+        #for name, module in base_model().named_children():
+        #    if name == "conv1":
+        #        module = nn.Conv2d(
+        #            3, 64, kernel_size=3, stride=1, padding=1, bias=False
+        #        )
+        #    if not isinstance(module, nn.Linear) and not isinstance(
+        #        module, nn.MaxPool2d
+        #    ):
+        #        self.base.append(module)
+        self.base = ResNet50(num_classes=10)
         self.g = nn.Sequential(nn.Linear(2048, 128), nn.BatchNorm1d(128), nn.ReLU())
 
     def forward(self, x):
-        x = self.base(x)
+        x = self.base.up_to_linear_layer(x)
         x = torch.flatten(x, start_dim=1)
         out = self.g(x)
         return out

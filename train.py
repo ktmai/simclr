@@ -14,12 +14,13 @@ import torch.nn.functional as F
 from pytorch_metric_learning import losses
 from data_augmentations import get_color_distortion
 from models import Encoder
-from modified_cifar import CIFAR10_new
-
+from modified_cifar import CIFAR10_TANDA
 
 def train(args, model, device, train_loader, optimizer, loss_func, epoch):
     model.train()
     for batch_idx, (xi, xj, _) in enumerate(train_loader):
+        xi = xi.float()
+        xj = xj.float()
         xi, xj = xi.to(device), xj.to(device)
         optimizer.zero_grad()
         hi = model(xi)
@@ -66,28 +67,17 @@ def main():
     )
     parser.add_argument("--SAVE_NAME", default="model")
     args = parser.parse_args()
+
+
+    from modified_cifar import CIFAR10_TANDA
     use_cuda = torch.cuda.is_available()
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    online_transform = transforms.Compose(
-        [
-            transforms.RandomResizedCrop((32, 32)),
-            transforms.RandomHorizontalFlip(),
-            get_color_distortion(s=args.DISTORT_STRENGTH),
-            transforms.ToTensor(),
-            transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010]),
-        ]
-    )
-
-    trainset = CIFAR10_new(
-        root="./data", train=True, download=True, transform=online_transform
-    )
-
     # Need to drop last minibatch to prevent matrix multiplication erros
+    trainset = CIFAR10_TANDA(root="/home/amavorpa/learning_to_self_supervise/eg_batches/")
     train_loader = torch.utils.data.DataLoader(
-        trainset, batch_size=args.BATCH_SIZE, shuffle=True, drop_last=True
-    )
+        trainset, batch_size=64, shuffle=False, drop_last=True)
 
     model = Encoder().to(device)
     optimizer = optim.Adam(model.parameters())

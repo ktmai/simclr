@@ -123,7 +123,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = self.up_to_linear_layer(x)
-        #out = self.linear(out)
+        out = self.linear(out)
         return out
 
 
