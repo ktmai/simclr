@@ -14,13 +14,15 @@ import torch.nn.functional as F
 from pytorch_metric_learning import losses
 from data_augmentations import get_color_distortion
 from models import Encoder
-from modified_cifar import CIFAR10_new
+from kim_modified_cifar import CIFAR10_new
 
 
 def train(args, model, device, train_loader, optimizer, loss_func, epoch):
     model.train()
     for batch_idx, (xi, xj, _) in enumerate(train_loader):
-        xi, xj  = xi.to(device), xj.to(device)
+        xi = xi.float()
+        xj = xj.float()
+        xi, xj = xi.to(device), xj.to(device)
         optimizer.zero_grad()
         hi = model(xi)
         hj = model(xj)
@@ -46,35 +48,38 @@ def main():
     parser.add_argument('--SAVE_NAME', default='model')
     args = parser.parse_args()
     use_cuda = torch.cuda.is_available()
-    
+
     device = torch.device("cuda" if use_cuda else "cpu")
 
     online_transform = transforms.Compose(
-        [transforms.RandomResizedCrop((32,32)),
-         transforms.RandomHorizontalFlip(),
-         get_color_distortion(s=args.DISTORT_STRENGTH),
+        [#transforms.RandomResizedCrop((32,32)),
+         #transforms.RandomHorizontalFlip(),
+         #get_color_distortion(s=args.DISTORT_STRENGTH),
          transforms.ToTensor(),
-         transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])])
-    
-    
-    trainset = CIFAR10_new(root='./data', 
-                                        train = True, 
-                                        download = True, 
-                                        transform = online_transform)
-    
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+#    trainset = CIFAR10_new(root='./data',
+#                           train = True,
+#                           download = True,
+#                           transform = online_transform)
+
+    from modified_cifar import CIFAR10_TANDA
+
+    trainset = CIFAR10_TANDA(root="batches/train/", transform=online_transform)
+
     # Need to drop last minibatch to prevent matrix multiplication erros
-    train_loader = torch.utils.data.DataLoader(trainset, 
+    train_loader = torch.utils.data.DataLoader(trainset,
                                           batch_size = args.BATCH_SIZE,
-                                          shuffle = True,
+                                          shuffle = False,
                                           drop_last = True)
-    
+
     model = Encoder().to(device)
     optimizer = optim.Adam(model.parameters())
     loss_func = losses.NTXentLoss(args.TEMP)
     for epoch in range(args.EPOCHS):
         train(args, model, device, train_loader, optimizer, loss_func, epoch)
-    
+
     torch.save(model.state_dict(), './ckpt/{}.pth'.format(args.SAVE_NAME))
-    
+
 if __name__ == '__main__':
     main()

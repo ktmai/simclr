@@ -7,108 +7,22 @@ import os
 import os.path
 import numpy as np
 import sys
-
-if sys.version_info[0] == 2:
-    import cPickle as pickle
-else:
-    import pickle
-
-from torchvision.datasets.vision import VisionDataset
-from torchvision.datasets.utils import check_integrity, download_and_extract_archive
+from torch.utils.data import Dataset, DataLoader
 
 
-class CIFAR10_new(VisionDataset):
-    """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
-
-    Args:
-        root (string): Root directory of dataset where directory
-            ``cifar-10-batches-py`` exists or will be saved to if download is set to True.
-        train (bool, optional): If True, creates dataset from training set, otherwise
-            creates from test set.
-        transform (callable, optional): A function/transform that takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        download (bool, optional): If true, downloads the dataset from the internet and
-            puts it in root directory. If dataset is already downloaded, it is not
-            downloaded again.
-
-    """
-    base_folder = 'cifar-10-batches-py'
-    url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
-    filename = "cifar-10-python.tar.gz"
-    tgz_md5 = 'c58f30108f718f92721af3b95e74349a'
-    train_list = [
-        ['data_batch_1', 'c99cafc152244af753f735de768cd75f'],
-        ['data_batch_2', 'd4bba439e000b95fd0a9bffe97cbabec'],
-        ['data_batch_3', '54ebc095f3ab1f0389bbae665268c751'],
-        ['data_batch_4', '634d18415352ddfa80567beed471001a'],
-        ['data_batch_5', '482c414d41f54cd18b22e5b47cb7c3cb'],
-    ]
-
-    test_list = [
-        ['test_batch', '40351d587109b95175f43aff81a1287e'],
-    ]
-    meta = {
-        'filename': 'batches.meta',
-        'key': 'label_names',
-        'md5': '5ff9c542aee3614f3951f8cda6e48888',
-    }
-
-    def __init__(self, root, train=True, transform=None, target_transform=None,
-                 download=False):
-
-        super(CIFAR10_new, self).__init__(root, transform=transform,
-                                      target_transform=target_transform)
-
-        self.train = train  # training set or test set
-
-        if download:
-            self.download()
-
-        if not self._check_integrity():
-            raise RuntimeError('Dataset not found or corrupted.' +
-                               ' You can use download=True to download it')
-
-        if self.train:
-            downloaded_list = self.train_list
-        else:
-            downloaded_list = self.test_list
-
-        self.data = []
-        self.targets = []
-
-        # now load the picked numpy arrays
-        for file_name, checksum in downloaded_list:
-            file_path = os.path.join(self.root, self.base_folder, file_name)
-            with open(file_path, 'rb') as f:
-                if sys.version_info[0] == 2:
-                    entry = pickle.load(f)
-                else:
-                    entry = pickle.load(f, encoding='latin1')
-                self.data.append(entry['data'])
-                if 'labels' in entry:
-                    self.targets.extend(entry['labels'])
-                else:
-                    self.targets.extend(entry['fine_labels'])
-
-        self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
-        self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
-
-        self._load_meta()
-
-    def _load_meta(self):
-        path = os.path.join(self.root, self.base_folder, self.meta['filename'])
-        if not check_integrity(path, self.meta['md5']):
-            raise RuntimeError('Dataset metadata file not found or corrupted.' +
-                               ' You can use download=True to download it')
-        with open(path, 'rb') as infile:
-            if sys.version_info[0] == 2:
-                data = pickle.load(infile)
-            else:
-                data = pickle.load(infile, encoding='latin1')
-            self.classes = data[self.meta['key']]
-        self.class_to_idx = {_class: i for i, _class in enumerate(self.classes)}
+class CIFAR10_TANDA(Dataset):
+    def __init__(self, root, transform=None):
+        super(CIFAR10_TANDA, self).__init__()
+        self.root = root
+        (
+            transformed_batches,
+            not_transformed_batches,
+            labels,
+        ) = self.get_transformed_and_not_batches(root)
+        self.not_transformed_data = self.load_data(transformed_batches)
+        self.transformed_data = self.load_data(not_transformed_batches)
+        self.labels = self.load_data(labels, labels=True)
+        self.transform = transform
 
     def __getitem__(self, index):
         """
@@ -117,44 +31,86 @@ class CIFAR10_new(VisionDataset):
 
         Returns:
             tuple: (img1, img2, target) where img1 and img2 are identical
-            samples with random transformations target is index of the target 
+            samples with random transformations target is index of the target
             class.
         """
-        img, target = self.data[index], self.targets[index]
-
-        # doing this so that it is consistent with all other datasets
-        # to return a PIL Image
-        img1 = Image.fromarray(img)
-        img2 = Image.fromarray(img)
-
+        if index == 0:
+            self.shuffle_data()
+        img1, img2 = self.not_transformed_data[index], self.transformed_data[index]
+        target = self.labels[index]  ## dummy target not actually used
         if self.transform is not None:
+            img1 = img1.reshape((32, 32, 3))
+            img2 = img2.reshape((32, 32, 3))
             img1 = self.transform(img1)
             img2 = self.transform(img2)
 
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
         return img1, img2, target
 
-
-
     def __len__(self):
-        return len(self.data)
+        return len(self.transformed_data)
 
-    def _check_integrity(self):
-        root = self.root
-        for fentry in (self.train_list + self.test_list):
-            filename, md5 = fentry[0], fentry[1]
-            fpath = os.path.join(root, self.base_folder, filename)
-            if not check_integrity(fpath, md5):
-                return False
-        return True
+    def shuffle_data(self):
+        # shuffle hack TODO fix this
+        import random
 
-    def download(self):
-        if self._check_integrity():
-            print('Files already downloaded and verified')
-            return
-        download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
+        zipped = list(zip(self.not_transformed_data, self.transformed_data))
+        random.shuffle(zipped)
+        self.not_transformed_data, self.transformed_data = zip(*zipped)
 
-    def extra_repr(self):
-        return "Split: {}".format("Train" if self.train is True else "Test")
+    def get_and_separate_paths(self, directory):
+        import glob
+
+        all_paths = glob.glob(directory + "*npy")
+        not_transformed_paths = [x for x in all_paths if "not" in x]
+        transformed_paths = [x for x in all_paths if "not" not in x]
+        transformed_paths = [x for x in transformed_paths if "label" not in x]
+        assert self.common_member(transformed_paths, not_transformed_paths) == False
+        return transformed_paths, not_transformed_paths
+
+    def get_transformed_and_not_batches(self, root):
+        transformed_paths, not_transformed_paths = self.get_and_separate_paths(
+            directory=root
+        )
+        transformed_paths = self.sort_strings_based_on_digits(transformed_paths)
+        not_transformed_paths = self.sort_strings_based_on_digits(not_transformed_paths)
+        labels = self.get_labels_from_paths(paths=transformed_paths)
+        return transformed_paths, not_transformed_paths, labels
+
+    def get_labels_from_paths(self, paths):
+        import re
+
+        label_paths = []
+        for img_path in paths:
+            print(img_path)
+            batch_id = str(re.findall(r"\d+", img_path)[0])
+            label_paths.append(self.root + "batch_" + str(batch_id) + "_labels.npy")
+        return label_paths
+
+    def load_data(self, batch_paths, labels=False):
+        import numpy as np
+
+        data_arr = []
+        for a_path in batch_paths:
+            batch = np.load(a_path)
+            for img in batch:
+                if labels == False:
+                    data_arr.append(img.reshape(3, 32, 32))
+                else:
+                    data_arr.append(img)
+        data_arr = np.array(data_arr)
+
+        return data_arr
+
+    def sort_strings_based_on_digits(self, string_list):
+        import re
+
+        string_list = sorted(string_list, key=lambda x: re.findall(r"\d+", x)[0])
+        return string_list
+
+    def common_member(self, a, b):
+        a_set = set(a)
+        b_set = set(b)
+        if a_set & b_set:
+            return True
+        else:
+            return False
